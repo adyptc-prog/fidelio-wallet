@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Fidelio Wallet</string>
+    <string name="nfc_service_description">Fidelio NFC Card Access</string>
+</resources>

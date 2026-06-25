@@ -1,0 +1,42 @@
+name: fidelio_wallet
+description: "Fidelio client wallet — store and present loyalty cards and memberships."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  drift: ^2.24.0
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.0
+  mobile_scanner: ^7.1.2
+  path: ^1.9.0
+  path_provider: ^2.1.5
+  qr_flutter: ^4.1.0
+  sqlite3_flutter_libs: ^0.5.29
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/fidelio_wallet_1024.png"
+  min_sdk_android: 24
+  adaptive_icon_background: "#0B0F1E"
+  adaptive_icon_foreground: "assets/fidelio_wallet_1024.png"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
