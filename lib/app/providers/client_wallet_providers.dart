@@ -17,8 +17,11 @@ final walletRepositoryProvider = Provider<WalletRepository>((ref) {
 
 final clientWalletIdProvider = FutureProvider<String>((ref) async {
   final repository = ref.watch(appSettingsRepositoryProvider);
-  final existing = await repository.loadClientWalletId();
-  if (existing != null) return existing;
+  final existingWalletId = await repository.loadClientWalletId();
+  if (existingWalletId != null) {
+    return existingWalletId;
+  }
+
   final walletId = _newClientWalletId();
   await repository.saveClientWalletId(walletId);
   return walletId;
@@ -54,10 +57,12 @@ class ClientWalletImportController {
 
   Future<WalletCard?> findExisting(SubscriptionImportPayload payload) async {
     final walletId = await _ref.read(clientWalletIdProvider.future);
-    return _ref.read(walletRepositoryProvider).getWalletCardByCardId(
-      walletId: walletId,
-      cardId: payload.subscriptionId,
-    );
+    return _ref
+        .read(walletRepositoryProvider)
+        .getWalletCardByCardId(
+          walletId: walletId,
+          cardId: payload.subscriptionId,
+        );
   }
 
   Future<WalletCard?> importPayload(
@@ -67,7 +72,9 @@ class ClientWalletImportController {
     final repository = _ref.read(walletRepositoryProvider);
     final walletId = await _ref.read(clientWalletIdProvider.future);
     final existing = await findExisting(payload);
-    if (existing != null && !updateExisting) return existing;
+    if (existing != null && !updateExisting) {
+      return existing;
+    }
 
     final walletCard = WalletCard(
       walletCardId: existing?.walletCardId ?? _newWalletCardId(),
@@ -86,6 +93,12 @@ class ClientWalletImportController {
       entriesRemaining: payload.entriesRemaining,
       scanValue: payload.scanValue,
       validUntil: payload.validUntil,
+      programType: payload.programType,
+      challengeWindowDays: payload.challengeWindowDays,
+      referralEnabled: payload.referralProgramEnabled,
+      referrerCardId: existing?.referrerCardId ?? payload.referrerCardId,
+      pendingActivation:
+          existing?.pendingActivation ?? payload.isReferralInvite,
     );
 
     await repository.saveWalletCard(walletCard);
@@ -103,9 +116,15 @@ class ClientWalletImportController {
   Future<WalletCard?> updateMyCard(String walletCardId) async {
     final repository = _ref.read(walletRepositoryProvider);
     final card = await repository.getWalletCard(walletCardId);
-    if (card == null) return null;
+    if (card == null) {
+      return null;
+    }
+
     final remaining = card.entriesRemaining;
-    if (remaining == null) return card;
+    if (remaining == null) {
+      return card;
+    }
+
     final scanValue = card.scanValue ?? 1;
     final updated = card.copyWith(
       entriesRemaining: (remaining - scanValue).clamp(0, remaining).toInt(),
@@ -117,8 +136,27 @@ class ClientWalletImportController {
     return updated;
   }
 
-  static String _newWalletCardId() =>
-      'wallet-card-${DateTime.now().microsecondsSinceEpoch}';
+  /// Marks a referral-received card as activated, after the friend has
+  /// shown its activation QR to the business. Optimistic and local-only,
+  /// same pattern as [updateMyCard] — there's no live confirmation from the
+  /// business's device.
+  Future<WalletCard?> confirmReferralActivation(String walletCardId) async {
+    final repository = _ref.read(walletRepositoryProvider);
+    final card = await repository.getWalletCard(walletCardId);
+    if (card == null) {
+      return null;
+    }
+
+    final updated = card.copyWith(pendingActivation: false);
+    await repository.saveWalletCard(updated);
+    _ref.invalidate(clientWalletCardsProvider);
+    _ref.invalidate(clientWalletCardProvider(walletCardId));
+    return updated;
+  }
+
+  static String _newWalletCardId() {
+    return 'wallet-card-${DateTime.now().microsecondsSinceEpoch}';
+  }
 
   static CardStatus _statusFromPayload(SubscriptionImportPayload payload) {
     return payload.validUntil.isBefore(DateTime.now())

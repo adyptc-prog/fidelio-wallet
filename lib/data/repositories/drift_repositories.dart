@@ -21,7 +21,9 @@ class DriftAppSettingsRepository implements AppSettingsRepository {
       for (final row in rows) row['key'] as String: row['value'] as String?,
     };
     return AppSettings(
-      clientCardsViewMode: _clientCardsViewMode(values[_clientCardsViewModeKey]),
+      clientCardsViewMode: _clientCardsViewMode(
+        values[_clientCardsViewModeKey],
+      ),
       zoomMode: _zoomMode(values[_zoomModeKey]),
       darkMode: values[_darkModeKey] == 'true',
     );
@@ -118,8 +120,10 @@ INSERT OR REPLACE INTO wallet_cards
 (wallet_card_id, wallet_id, business_id, card_id, card_type, display_name,
  created_at, status, business_name, business_domain, business_symbol,
  business_accent_color, entries_total, entries_remaining, valid_until,
- scan_value, dynamic_challenge, challenge_timestamp, challenge_signature)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ scan_value, dynamic_challenge, challenge_timestamp, challenge_signature,
+ program_type, challenge_window_days, referral_enabled, referrer_card_id,
+ pending_activation)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ''',
       [
         card.walletCardId,
@@ -141,16 +145,20 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         card.dynamicChallenge,
         _nullableDate(card.challengeTimestamp),
         card.challengeSignature,
+        card.programType,
+        card.challengeWindowDays,
+        _bool(card.referralEnabled),
+        card.referrerCardId,
+        _bool(card.pendingActivation),
       ],
     );
   }
 
   @override
   Future<void> deleteWalletCard(String walletCardId) async {
-    await _db.delete(
-      'DELETE FROM wallet_cards WHERE wallet_card_id = ?',
-      [walletCardId],
-    );
+    await _db.delete('DELETE FROM wallet_cards WHERE wallet_card_id = ?', [
+      walletCardId,
+    ]);
   }
 
   WalletCard _fromRow(Map<String, Object?> row) {
@@ -174,12 +182,19 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       dynamicChallenge: row['dynamic_challenge'] as String?,
       challengeTimestamp: _readNullableDate(row['challenge_timestamp']),
       challengeSignature: row['challenge_signature'] as String?,
+      programType: row['program_type'] as String?,
+      challengeWindowDays: row['challenge_window_days'] as int?,
+      referralEnabled: _readBool(row['referral_enabled']),
+      referrerCardId: row['referrer_card_id'] as String?,
+      pendingActivation: _readBool(row['pending_activation']),
     );
   }
 }
 
 int _date(DateTime value) => value.toUtc().millisecondsSinceEpoch;
 int? _nullableDate(DateTime? value) => value == null ? null : _date(value);
+int _bool(bool value) => value ? 1 : 0;
+bool _readBool(Object? value) => (value as int? ?? 0) != 0;
 DateTime _readDate(Object? value) =>
     DateTime.fromMillisecondsSinceEpoch(value! as int, isUtc: true);
 DateTime? _readNullableDate(Object? value) =>

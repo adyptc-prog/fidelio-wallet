@@ -1,7 +1,7 @@
 name: fidelio_wallet
 description: "Fidelio client wallet — store and present loyalty cards and memberships."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.10.7
@@ -19,6 +19,8 @@ dependencies:
   path_provider: ^2.1.5
   qr_flutter: ^4.1.0
   sqlite3_flutter_libs: ^0.5.29
+  audioplayers: ^6.7.1
+  share_plus: ^13.2.0
 
 dev_dependencies:
   flutter_test:
@@ -40,3 +42,4 @@ flutter:
 
   assets:
     - assets/
+    - assets/sounds/

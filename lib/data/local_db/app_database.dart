@@ -18,7 +18,10 @@ class AppDatabase implements QueryExecutorUser {
   int get schemaVersion => 1;
 
   @override
-  Future<void> beforeOpen(QueryExecutor executor, OpeningDetails details) async {}
+  Future<void> beforeOpen(
+    QueryExecutor executor,
+    OpeningDetails details,
+  ) async {}
 
   Future<void> open() async {
     if (_opened) return;
@@ -26,10 +29,27 @@ class AppDatabase implements QueryExecutorUser {
     for (final statement in _schemaStatements) {
       await _executor.runCustom(statement);
     }
+    for (final migration in _columnMigrationStatements) {
+      if (!await _columnExists(_executor, migration.table, migration.column)) {
+        await _executor.runCustom(migration.statement);
+      }
+    }
     for (final statement in _indexStatements) {
       await _executor.runCustom(statement);
     }
     _opened = true;
+  }
+
+  Future<bool> _columnExists(
+    QueryExecutor executor,
+    String table,
+    String column,
+  ) async {
+    final rows = await executor.runSelect(
+      'PRAGMA table_info($table)',
+      const [],
+    );
+    return rows.any((row) => row['name'] == column);
   }
 
   Future<void> close() async {
@@ -119,4 +139,47 @@ const _indexStatements = [
 CREATE INDEX IF NOT EXISTS idx_wallet_cards_wallet_id
 ON wallet_cards (wallet_id)
 ''',
+];
+
+class _ColumnMigrationStatement {
+  const _ColumnMigrationStatement({
+    required this.table,
+    required this.column,
+    required this.statement,
+  });
+
+  final String table;
+  final String column;
+  final String statement;
+}
+
+const _columnMigrationStatements = [
+  _ColumnMigrationStatement(
+    table: 'wallet_cards',
+    column: 'program_type',
+    statement: 'ALTER TABLE wallet_cards ADD COLUMN program_type TEXT',
+  ),
+  _ColumnMigrationStatement(
+    table: 'wallet_cards',
+    column: 'challenge_window_days',
+    statement:
+        'ALTER TABLE wallet_cards ADD COLUMN challenge_window_days INTEGER',
+  ),
+  _ColumnMigrationStatement(
+    table: 'wallet_cards',
+    column: 'referral_enabled',
+    statement:
+        'ALTER TABLE wallet_cards ADD COLUMN referral_enabled INTEGER NOT NULL DEFAULT 0',
+  ),
+  _ColumnMigrationStatement(
+    table: 'wallet_cards',
+    column: 'referrer_card_id',
+    statement: 'ALTER TABLE wallet_cards ADD COLUMN referrer_card_id TEXT',
+  ),
+  _ColumnMigrationStatement(
+    table: 'wallet_cards',
+    column: 'pending_activation',
+    statement:
+        'ALTER TABLE wallet_cards ADD COLUMN pending_activation INTEGER NOT NULL DEFAULT 0',
+  ),
 ];
